@@ -1,7 +1,15 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+
 docker-compose.yaml
 
 git-filter-repo
 
-yellow_tripdata_2021-01.*
+yellow_tripdata_2021_01.*
+
+*.csv
+
+*.parquet
+
+*.png
+
