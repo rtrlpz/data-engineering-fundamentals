@@ -1,32 +1,33 @@
+# 📦 .gitignore for data engineering project
+# Excludes sensitive files, large datasets, and build artifacts
 
+# IDE and system files
 .DS_Store
+.idea/
+.vscode/
 
-.idea
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
 
+# Secrets and config
+*.env
+google_credentials.json
+
+# Terraform
 *.tfstate
+.terraform/
+.terraform.lock.*
 
-*.tfstate.*
-
-**.terraform
-
-**.terraform.lock.*
-
-**google_credentials.json
-
-**logs/
-
-**.env
-
-**__pycache__/
-
+# Logs and history
+logs/
 .history
 
-**/ny_taxi_postgres_data/*
+# Images and serving dirs
+images/
+serving_dir/
 
-serving_dir
-
-.ipynb_checkpoints/
-
-!week_6_stream_processing/avro_example/data/rides.csv
-
+# GitHub Copilot instructions
 copilot-instructions.md

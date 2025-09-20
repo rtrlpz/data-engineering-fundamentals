@@ -1,82 +1,126 @@
 # -- Imports -- #
+
+import os, sys
 import pandas as pd
-from sqlalchemy import create_engine, text
-from time import time
-import argparse
-import os 
+from pandas import DataFrame
+from pandas.io.parsers import TextFileReader
+from logger import get_logger
+from time import time, sleep
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
 
 
-def main(params):
-    # Get params
-    user = params.user
-    password = params.password
-    host = params.host
-    port = params.port
-    db = params.db
-    table_name = params.table_name
-    url = params.url
+# -- Logger setup -- #
+logger = get_logger(__name__, log_file="ingestion.log")
+
+
+# -- Functions -- #
+
+def make_engine_with_retry(
+        max_retries: int = 5,
+        backoff_s: int = 5,
+) -> Engine:
+    """
+    Attempt to create a SQLAlchemy engine with retries on failure.
+    """
+    attempts = 0
+    while attempts < max_retries:
+        try:
+            url = (
+                f"postgresql://{os.environ['POSTGRES_USER']}:"
+                f"{os.environ['POSTGRES_PASSWORD']}@"
+                f"{os.environ['POSTGRES_HOST']}:"
+                f"{os.environ['POSTGRES_PORT']}/"
+                f"{os.environ['POSTGRES_DB']}"
+            )
+            # Create and thest the engine
+            engine: Engine = create_engine(url)
+            engine.connect().close()
+            logger.info("Database connection established successfully.")
+            
+            return engine
+        
+        except OperationalError as e:
+            attempts += 1
+            wait = backoff_s * (2 ** (attempts -1))
+            logger.warning(
+                "Connection failed (attempt %d/%d). %s retrying in %.1f seconds...",
+                attempts, max_retries, e, wait
+            )
+            sleep(wait)
+
+    logger.error("Failed to connect to Postgress after %d attempts", max_retries)
+
+    raise SystemExit(1)
+
+
+# -- Main function -- #
+def main():
+    logger.info("Starting the data ingestion pipeline...")
+
+    # Read variables directly from enviroment
+    table_name = os.environ["TABLE_NAME"]
+    csv_name = os.environ["DATA_CSV"]
+    url = os.environ["DATA_URL"]
+
+    # Download the data if it doesn't exist
+    if not os.path.exists(csv_name):
+        # Use -O to specify the output filename for wget
+        os.system(f"wget {url} -O {csv_name}")
+    logger.info("Parameters loaded from environment variables.")
     
-    csv_name = url
-
-    # Download the csv file
-    # os.system(f"wget {url} -O {csv_name}")
-
     # Create connection
-    engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')
+    # This single function call replaces the old user, password, host, etc.
+    # variables and the direct create_engine call.
+    logger.info("Creating database engine...")
+    engine = make_engine_with_retry()
+    logger.info("Database created sucesfully.")
 
-    # 1. Read the csv file
     # Data partitioning
-    df_iter = pd.read_csv(csv_name, iterator=True, chunksize=100000, low_memory=False)
-    df = next(df_iter)
+    logger.info("Starting data partitioning...")
+    df_iter: TextFileReader = pd.read_csv( # type: ignore # Pylance overload issue; returns TextFileReader
+        csv_name, 
+        iterator=True, 
+        chunksize=100000
+        )
     
-    # 2. Create the table
-    # Select the header to create columns without rows 
+    df: DataFrame = next(df_iter)
+    logger.info("Data partitioning completed.")
+   
+    # Create table
+    logger.info(f"Creating table {table_name} if not exists...")
     df.head(n=0).to_sql(name=table_name, con=engine, if_exists='replace')
-    print('Table created successfully!')
+    logger.info(f"Table {table_name} is ready.")
 
-    # 3. Ingest data into the table
+    # Ingest data into the table
+    logger.info("Starting data ingestion...")
     while True:
         try:
-            # Measure time            
+            logger.info("Ingesting a new chunk...")            
             t_start = time()
 
-            # Convert to datetime
+            logger.info("Converting datetime columns...")
             df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
             df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
 
-            # Insert data into the table
+            logger.info("Inserting chunk into the database...")
             df.to_sql(name=table_name, con=engine, if_exists='append')
-            
-            # Get the next chunk
             df = next(df_iter)
 
-            # End measure time    
             t_end = time()
-
-            print('Inserted a chunk..., took %.3f seconds' % (t_end - t_start))
+            logger.info(f"Chunk ingested. Took {t_end - t_start:.3f} seconds.") 
 
         except StopIteration:
-            print('✅ All chunks processed and inserted into PostgreSQL.')
-            
+            logger.info("Data ingestion completed successfully.")            
             break
 
+        except OperationalError as e:
+            logger.error(f"OperationalError occurred: {e}")
+            sys.exit(1)
 
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(description='Ingest CSV data to Postgres')
-
-    parser.add_argument('--user', help='user name for postgres')
-    parser.add_argument('--password', help='password name for postgres')
-    parser.add_argument('--host', help='host name for postgres')
-    parser.add_argument('--port', help='port name for postgres')
-    parser.add_argument('--db', help='database name for postgres')
-    parser.add_argument('--table_name', help='name of the table where we will write the results to')
-    parser.add_argument('--url', help='url of the csv file')
-
-    args = parser.parse_args()
-
-    main(args)
+    main()
     
 
-    

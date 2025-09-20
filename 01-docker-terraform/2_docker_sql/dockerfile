@@ -1,0 +1,12 @@
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y wget
+RUN pip install pandas sqlalchemy psycopg2-binary pandas-stubs
+
+WORKDIR /app
+COPY ingest-data.py ingest-data.py
+COPY logger.py logger.py
+
+
+ENTRYPOINT ["python", "ingest-data.py"]
+

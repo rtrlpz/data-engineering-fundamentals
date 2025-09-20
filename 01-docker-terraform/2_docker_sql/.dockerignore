@@ -1,0 +1,25 @@
+# Python artifacts
+__pycache__/
+*.pyc 
+*.pyo 
+*.pyd 
+
+# Enviroment and secres
+.env 
+*.env
+
+# Logs and output
+logs/
+*.logs
+
+# Git and editor junt
+.git/
+.gitignore/
+.vscode/
+*.swp
+*.bak
+
+# Data Files
+data/
+*.csv
+*.parquet

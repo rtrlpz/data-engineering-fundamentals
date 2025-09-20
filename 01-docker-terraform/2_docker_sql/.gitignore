@@ -1,15 +1,19 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Docker volumes
+ny_tripdata_database/
+pgadmin/
 
-docker-compose.yaml
+# Screenshots and ingestion artifacts
+screenshots/
+data/ingestion/
+*.txt
+.ipynb_checkpoints/
 
-git-filter-repo
+# Keep folder structure
+!screenshots/.keep
+!ny_taxi_database/.keep
 
-yellow_tripdata_2021_01.*
-
-*.csv
-
-*.parquet
-
-*.png
+# Ignore scripts folder
+scripts/
+!scripts/.keep
 
