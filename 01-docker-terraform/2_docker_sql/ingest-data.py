@@ -9,24 +9,39 @@ from time import time, sleep
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
+# from dotenv import load_dotenv
 
 
 # -- Logger setup -- #
 logger = get_logger(__name__, log_file="ingestion.log")
 
+# Validation Script
+logger.info("Verifing environment variables...")
+REQUIRED_VARS = [
+    "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
+    "POSTGRES_HOST", "POSTGRES_PORT", "TABLE_NAME", "PGADMIN_DEFAULT_EMAIL",
+    "PGADMIN_DEFAULT_PASSWORD", "DATA_CSV", "DATA_URL" 
+]
+
+missing = [var for var in REQUIRED_VARS if not os.getenv(var)]
+
+if missing:
+    raise EnvironmentError(f"Missing required env vars: {missing}")
+
+logger.info("Verification completed.")
 
 # -- Functions -- #
-
+logger.info("Checking database connectivity...")
 def make_engine_with_retry(
         max_retries: int = 5,
-        backoff_s: int = 5,
-) -> Engine:
+        backoff_s: int = 5 ) -> Engine:
     """
     Attempt to create a SQLAlchemy engine with retries on failure.
     """
     attempts = 0
     while attempts < max_retries:
         try:
+            logger.info(f"Connecting to DB at {os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']} as {os.environ['POSTGRES_USER']} to {os.environ['POSTGRES_DB']}")
             url = (
                 f"postgresql://{os.environ['POSTGRES_USER']}:"
                 f"{os.environ['POSTGRES_PASSWORD']}@"
@@ -34,7 +49,7 @@ def make_engine_with_retry(
                 f"{os.environ['POSTGRES_PORT']}/"
                 f"{os.environ['POSTGRES_DB']}"
             )
-            # Create and thest the engine
+            # Create and test the engine
             engine: Engine = create_engine(url)
             engine.connect().close()
             logger.info("Database connection established successfully.")
@@ -75,7 +90,7 @@ def main():
     # variables and the direct create_engine call.
     logger.info("Creating database engine...")
     engine = make_engine_with_retry()
-    logger.info("Database created sucesfully.")
+    logger.info("Database created succesfully.")
 
     # Data partitioning
     logger.info("Starting data partitioning...")

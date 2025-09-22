@@ -1,5 +1,6 @@
 services:
   pgdatabase:
+    container_name: postgres-main
     image: postgres:13
     env_file:
       - .env
@@ -10,15 +11,20 @@ services:
     networks:
       - pg-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 10s
+      timeout: 5s
       retries: 5
     restart: always
 
   pgadmin:
+    container_name: pgadmin-ui
     image: dpage/pgadmin4
-    env_file:
-      - .env
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${PGADMIN_PORT}:80"
     volumes:
@@ -29,18 +35,24 @@ services:
       - pgdatabase
 
   ingestion:
-    build: .
-    container_name: ingest-script
+    container_name: ingestion-script
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: ingestion-py
     env_file:
       - .env
+    restart: on-failure
     depends_on:
       pgdatabase:
         condition: service_healthy
+      pgadmin:
+        condition: service_started
     networks:
       - pg-network
     volumes:
-      - ./data:/app/data
-      - ./logs:/logs
+      - ./data:/app/data:rw
+      - ./logs:/logs:rw
 
 networks:
   pg-network:
