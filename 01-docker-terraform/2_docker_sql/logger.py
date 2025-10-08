@@ -18,3 +18,5 @@ def get_logger(name: str, log_file: str = "/logs/ingestion.log") -> logging.Logg
     logger.addHandler(file_handler)
 
     return logger
+
+# Fix logger, not loggin at all, not writing nor saving the logs no where in this project. 
