@@ -4,9 +4,12 @@
 
 # Volumes for persisting data
 volumes:
-  kestra-db-volume: 
+  kestra-db-volume:
+    driver: local 
   kestra-storage:
+    driver: local
   taxi-db-volume:
+    driver: local
   pgadmin:
   # Volume for running SQL init scripts for the taxi datasets
   taxi-init:
@@ -14,7 +17,7 @@ volumes:
 services:
   # Kestra PostgreSQL database configuration
   postgres_kestra_db:
-    image: postgres:18.0-alpine
+    image: postgres:15-alpine
     container_name: postgres-kestra-db
     env_file:
       - .env
@@ -40,7 +43,7 @@ services:
   kestra:
     image: kestra/kestra:latest
     container_name: kestra-server
-    user: "${KESTRA_DOCKER_USER}"
+    user: ${KESTRA_DOCKER_USER}
     command: server standalone
     ports:
       - "8080:8080"
@@ -48,47 +51,42 @@ services:
     volumes:
       - kestra-storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./tmp:/tmp/kestra-wd
+      - /tmp/kestra-wd:/tmp/kestra-wd
     env_file:
       - .env
     environment:
-      KESTRA_DATABASE_URL: ${KESTRA_DATABASE_URL} # Internal network connection
-      KESTRA_USER: ${KESTRA_USER}
-      KESTRA_PASSWORD: ${KESTRA_PASSWORD}
-      KESTRA_AUTH_USER: ${KESTRA_AUTH_USER}
-      KESTRA_AUTH_PASSWORD: ${KESTRA_AUTH_PASSWORD}
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
             url: ${KESTRA_DATABASE_URL}
-            driverClassName: org.postgresql.Driver
+            driverClassname: org.postgresql.Driver
             username: ${KESTRA_USER}
             password: ${KESTRA_PASSWORD}
         kestra:
           server:
             basicAuth:
-              enabled: true
+              enabled: false
               username: "${KESTRA_AUTH_USER}"
               password: ${KESTRA_AUTH_PASSWORD}
-        repository:
-          type: postgres
-        storage:
-          type: local
-          local:
-            basePath: "/app/storage"
-        queue:
-          type: postgres
-        task:
-          tmpDir:
-            path: /tmp/kestra-wd/tmp
-        url: http://localhost:8080
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+          queue:
+            type: postgres
+          task:
+            tmpDir: 
+              path: /tmp/kestra-wd/tmp
+          url: http://localhost:8080/
     depends_on:
       postgres_kestra_db:
         condition: service_healthy
 
-# Taxi database    
+# Taxi database  
   postgres_taxi_db:
-    image: postgres:18.0-alpine
+    image: postgres:15-alpine
     container_name: postgres-taxi-db
     env_file:
       - .env
@@ -98,7 +96,6 @@ services:
       POSTGRES_PASSWORD: ${TAXI_DB_PASSWORD}
     volumes:
       - taxi-db-volume:/var/lib/postgresql/data
-      - ./taxi-init:/docker-entrypoint-initdb.d
     ports:
       - "5434:5432"
     healthcheck:
@@ -109,6 +106,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    depends_on:
+      kestra:
+        condition: service_started
 
 # PgAdmin to manage both databases
   pgadmin:
@@ -125,8 +125,6 @@ services:
       - pgadmin:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json
     depends_on:
-      postgres_kestra_db:
-        condition: service_healthy
       postgres_taxi_db: 
-        condition: service_healthy
+        condition: service_started
 
