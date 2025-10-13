@@ -1,0 +1,29 @@
+# Ignore all JSON files (e.g., pgAdmin servers.json, flow metadata)
+*.json
+
+# Kestra internal storage (logs, executions, etc.)
+kestra-storage/
+
+# Docker-managed Postgres volumes (optional bind mounts)
+kestra-db-volume/
+taxi-db-volume/
+
+# pgAdmin persistent data and config
+pgadmin/
+
+# Kestra temp working directory
+tmp/
+
+# Python cache and virtual environments (if using scripts/)
+__pycache__/
+*.pyc
+.venv/
+.env/
+
+# VSCode or IDE settings
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
