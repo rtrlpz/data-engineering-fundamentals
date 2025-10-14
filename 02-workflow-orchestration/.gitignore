@@ -32,3 +32,6 @@ no_use.yml
 
 temp-notes.txt
 
+data/
+
+*.csv
